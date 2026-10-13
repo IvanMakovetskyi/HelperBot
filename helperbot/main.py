@@ -6,6 +6,7 @@ from telegram import BotCommand, BotCommandScopeChat, Update
 from telegram.error import TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
+from .admin import inbox, on_callback as admin_callback, stats
 from .config import Settings
 from .storage import Storage
 from .user import cancel, help_command, my_ideas, new, on_callback, on_text, start, unsupported
@@ -63,6 +64,9 @@ def build_application(settings: Settings) -> Application:
     application.add_handler(CommandHandler("my", my_ideas))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("inbox", inbox))
+    application.add_handler(CommandHandler("stats", stats))
+    application.add_handler(CallbackQueryHandler(admin_callback, pattern=r"^admin:"))
     application.add_handler(CallbackQueryHandler(on_callback, pattern=r"^(menu:|draft:)"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     application.add_handler(MessageHandler(~filters.TEXT & ~filters.COMMAND, unsupported))

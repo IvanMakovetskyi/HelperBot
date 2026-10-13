@@ -70,6 +70,7 @@ def admin_keyboard(idea_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🛠 В работу", callback_data=f"admin:status:{idea_id}:progress"), InlineKeyboardButton("✅ Готово", callback_data=f"admin:status:{idea_id}:done")],
         [InlineKeyboardButton("🚫 Не берём", callback_data=f"admin:status:{idea_id}:declined")],
+        [InlineKeyboardButton("↩️ Вернуть в новые", callback_data=f"admin:status:{idea_id}:new")],
     ])
 
 
