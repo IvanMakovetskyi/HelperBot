@@ -4,6 +4,7 @@ from html import escape
 from random import choice
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import BadRequest
 
 
 STATUS_LABELS = {
@@ -100,7 +101,11 @@ def idea_card(idea: dict, *, admin: bool = False) -> str:
 async def respond(update: Update, text: str, markup: InlineKeyboardMarkup | None = None) -> None:
     """Edit a tapped bot message or send a new one after a user message."""
     if update.callback_query:
-        await update.callback_query.edit_message_text(text, parse_mode="HTML", reply_markup=markup)
+        try:
+            await update.callback_query.edit_message_text(text, parse_mode="HTML", reply_markup=markup)
+        except BadRequest as exc:
+            if "message is not modified" not in str(exc).lower():
+                raise
     elif update.effective_message:
         await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=markup)
 

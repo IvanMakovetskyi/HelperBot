@@ -4,7 +4,7 @@ import logging
 from html import escape
 from random import choice
 
-from telegram import Update
+from telegram import BotCommand, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
@@ -42,6 +42,14 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, *, greet
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if is_private(update) and update.effective_user.id == context.application.bot_data["admin_id"]:
+        try:
+            await context.bot.set_my_commands(
+                [BotCommand("start", "Главное меню"), BotCommand("new", "Рассказать о проблеме"), BotCommand("my", "Мои заявки"), BotCommand("cancel", "Удалить черновик"), BotCommand("help", "Как это работает"), BotCommand("inbox", "Новые заявки"), BotCommand("stats", "Сводка")],
+                scope=BotCommandScopeChat(chat_id=update.effective_user.id),
+            )
+        except TelegramError:
+            logger.warning("Unable to register admin command menu")
     await show_menu(update, context, greeting=True)
 
 
@@ -136,7 +144,9 @@ async def my_ideas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if len(idea["problem"]) > 90:
             preview += "…"
         lines.append(f"\n<b>#{idea['id']}</b> · {STATUS_LABELS[idea['status']]}\n{escape(preview)}")
-    await respond(update, "\n".join(lines), menu_keyboard(update.effective_user.id == context.application.bot_data["admin_id"]))
+    buttons = [[InlineKeyboardButton(f"📄 Открыть #{idea['id']}", callback_data=f"menu:idea:{idea['id']}")] for idea in rows]
+    buttons.append([InlineKeyboardButton("🏠 Меню", callback_data="menu:home")])
+    await respond(update, "\n".join(lines), InlineKeyboardMarkup(buttons))
 
 
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -151,6 +161,14 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await my_ideas(update, context)
     elif data == "menu:help":
         await help_command(update, context)
+    elif data == "menu:home":
+        await show_menu(update, context)
+    elif data.startswith("menu:idea:") and data.removeprefix("menu:idea:").isdigit():
+        idea = await storage(context).get_idea(int(data.removeprefix("menu:idea:")))
+        if not idea or idea["user_id"] != update.effective_user.id:
+            await respond(update, "Эта заявка недоступна.")
+            return
+        await respond(update, idea_card(idea), InlineKeyboardMarkup([[InlineKeyboardButton("📂 К моим заявкам", callback_data="menu:mine")]]))
     elif data.startswith("draft:"):
         parts = data.split(":")
         if len(parts) not in {3, 4}:
@@ -195,3 +213,8 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def unsupported(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if await private_only(update):
         await update.effective_message.reply_text("Пока понимаю только текст. Да, робот с ограничениями. 🤖")
+
+
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await private_only(update):
+        await update.effective_message.reply_text("Такой команды нет. Откройте /help — там короткий список.")
