@@ -1,6 +1,7 @@
 """Small async persistence layer. Drafts survive process restarts."""
 
 from datetime import datetime, timezone
+from secrets import token_urlsafe
 
 from sqlalchemy import (
     BigInteger,
@@ -27,6 +28,7 @@ drafts = Table(
     "helperbot_drafts",
     metadata,
     Column("user_id", BigInteger, primary_key=True),
+    Column("draft_id", String(16), nullable=False),
     Column("step", String(32), nullable=False),
     Column("name", String(80)),
     Column("problem", Text),
@@ -82,7 +84,7 @@ class Storage:
                     update(drafts).where(drafts.c.user_id == user_id).values(step=step, updated_at=now, **fields)
                 )
             else:
-                await connection.execute(insert(drafts).values(user_id=user_id, step=step, updated_at=now, **fields))
+                await connection.execute(insert(drafts).values(user_id=user_id, draft_id=token_urlsafe(8), step=step, updated_at=now, **fields))
 
     async def delete_draft(self, user_id: int) -> None:
         async with self.engine.begin() as connection:
